@@ -1,23 +1,34 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
 import os
+from flask import Flask, request
+from telegram import Bot, Update
+from telegram.ext import Dispatcher, CommandHandler, MessageHandler, filters
 
-TOKEN = os.getenv("BOT_TOKEN")  # Render ke Dashboard me dalna hoga
+TOKEN = os.getenv("BOT_TOKEN")  # Render Dashboard me Environment Variable me BOT_TOKEN set karna
+bot = Bot(token=TOKEN)
 
-# /start command
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✅ Bot is live and working 24x7!")
+app = Flask(__name__)
 
-# /id command (Group/User Chat ID nikalne ke liye)
-async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    await update.message.reply_text(f"🆔 Chat ID: {chat_id}")
+# Dispatcher banate hain
+dispatcher = Dispatcher(bot, None, workers=0)
 
-def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("id", get_id))
-    app.run_polling()
+# Start command
+def start(update: Update, context):
+    update.message.reply_text("👋 Hello! I am alive on Render!")
 
-if __name__ == "__main__":
-    main()
+# Echo (jo bhi message bhejo, wahi wapas karega)
+def echo(update: Update, context):
+    update.message.reply_text(update.message.text)
+
+# Handlers add karna
+dispatcher.add_handler(CommandHandler("start", start))
+dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    dispatcher.process_update(update)
+    return "ok"
+
+@app.route("/")
+def home():
+    return "Bot is running on Render 🚀"
